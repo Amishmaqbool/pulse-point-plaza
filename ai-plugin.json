@@ -1,0 +1,21 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Nexlayer Deployment Assistant",
+  "name_for_model": "nexlayer_deployment",
+  "description_for_human": "Assists with deploying applications to Nexlayer cloud platform",
+  "description_for_model": "Helps deploy React/Vite applications to Nexlayer by managing Docker builds, container images, and deployment configurations",
+  "auth": {
+    "type": "oauth",
+    "oauth_url": "https://app.nexlayer.io/oauth",
+    "scope": "deploy:write",
+    "authorization_url": "https://app.nexlayer.io/authorize",
+    "token_url": "https://api.nexlayer.io/oauth/token"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "openapi.yaml"
+  },
+  "contact_email": "support@nexlayer.io",
+  "legal_info_url": "https://nexlayer.io/legal"
+}
+

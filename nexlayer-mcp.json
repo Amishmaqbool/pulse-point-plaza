@@ -1,0 +1,30 @@
+{
+  "name": "nexlayer-deployment",
+  "version": "1.0.0",
+  "description": "Nexlayer MCP configuration for Pulse Point Plaza deployment",
+  "mcp": {
+    "server": "nexlayer",
+    "config": {
+      "applicationName": "pulse-point-plaza",
+      "environment": "production",
+      "registry": "registry.nexlayer.io",
+      "imagePrefix": "pulse-point-plaza",
+      "defaultBranch": "nexlayer-mcp"
+    }
+  },
+  "deployment": {
+    "type": "frontend",
+    "framework": "react-vite",
+    "buildCommand": "npm run build",
+    "port": 80,
+    "healthCheck": {
+      "path": "/",
+      "interval": 30
+    }
+  },
+  "scripts": {
+    "get-url": "node get-deployment-url.js",
+    "get-url-sh": "./get-deployment-url.sh"
+  }
+}
+

@@ -1,0 +1,230 @@
+openapi: 3.0.0
+info:
+  title: Nexlayer Deployment API
+  description: API for deploying and managing applications on Nexlayer platform
+  version: 1.0.0
+  contact:
+    name: Nexlayer Support
+    email: support@nexlayer.io
+    url: https://nexlayer.io
+
+servers:
+  - url: https://api.nexlayer.io/v1
+    description: Production API
+  - url: https://api-staging.nexlayer.io/v1
+    description: Staging API
+
+security:
+  - bearerAuth: []
+
+paths:
+  /applications:
+    get:
+      summary: List applications
+      operationId: listApplications
+      tags:
+        - Applications
+      responses:
+        '200':
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Application'
+    post:
+      summary: Create application
+      operationId: createApplication
+      tags:
+        - Applications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationCreate'
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+
+  /applications/{name}:
+    get:
+      summary: Get application
+      operationId: getApplication
+      tags:
+        - Applications
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Application details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+    put:
+      summary: Update application
+      operationId: updateApplication
+      tags:
+        - Applications
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationUpdate'
+      responses:
+        '200':
+          description: Application updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+    delete:
+      summary: Delete application
+      operationId: deleteApplication
+      tags:
+        - Applications
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Application deleted
+
+  /applications/{name}/deploy:
+    post:
+      summary: Deploy application
+      operationId: deployApplication
+      tags:
+        - Deployments
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/yaml:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Deployment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+
+  /applications/{name}/status:
+    get:
+      summary: Get deployment status
+      operationId: getDeploymentStatus
+      tags:
+        - Deployments
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deployment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentStatus'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Application:
+      type: object
+      properties:
+        name:
+          type: string
+        environment:
+          type: string
+        url:
+          type: string
+        status:
+          type: string
+          enum: [deploying, live, error, stopped]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ApplicationCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        environment:
+          type: string
+          default: production
+
+    ApplicationUpdate:
+      type: object
+      properties:
+        environment:
+          type: string
+
+    Deployment:
+      type: object
+      properties:
+        id:
+          type: string
+        applicationName:
+          type: string
+        status:
+          type: string
+        url:
+          type: string
+        sessionToken:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    DeploymentStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [deploying, live, error, stopped]
+        url:
+          type: string
+        message:
+          type: string
+

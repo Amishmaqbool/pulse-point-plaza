@@ -1,0 +1,24 @@
+# Nexlayer Configuration Template
+# Copy this file to nexlayer.config and fill in your values
+
+# Application Configuration
+APPLICATION_NAME=pulse-point-plaza
+ENVIRONMENT=production
+
+# Registry Configuration
+REGISTRY=registry.nexlayer.io
+IMAGE_PREFIX=pulse-point-plaza
+IMAGE_TAG=latest
+
+# API Configuration
+NEXLAYER_API_URL=https://api.nexlayer.io
+NEXLAYER_SESSION_TOKEN=your_token_here
+
+# Deployment Configuration
+BRANCH=nexlayer-mcp
+PORT=80
+
+# Build Configuration
+BUILD_COMMAND=npm run build
+NODE_VERSION=20
+
