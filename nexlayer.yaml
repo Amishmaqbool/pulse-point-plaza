@@ -1,9 +1,0 @@
-application:
-  name: "techcorp-portal"
-  pods:
-    - name: "web"
-      # Replace with your Docker Hub username/image after building and pushing
-      image: "your-dockerhub-username/techcorp-portal:latest"
-      servicePorts:
-        - 80
-      path: "/"
