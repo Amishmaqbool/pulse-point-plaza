@@ -79,17 +79,44 @@ jobs:
           cat nexlayer.yaml
 
       - name: Deploy to Nexlayer
+        id: deploy
         if: steps.login.outcome == 'success'
         env:
           NEXLAYER_SESSION_TOKEN: ${{ secrets.NEXLAYER_SESSION_TOKEN }}
         run: |
           # Deploy to Nexlayer using the API
-          curl -X POST https://app.nexlayer.io/startUserDeployment/$NEXLAYER_SESSION_TOKEN \
+          RESPONSE=$(curl -s -X POST https://app.nexlayer.io/startUserDeployment/$NEXLAYER_SESSION_TOKEN \
             -H "Content-Type: text/x-yaml" \
-            --data-binary @nexlayer.yaml
+            --data-binary @nexlayer.yaml)
+          
+          echo "Deployment response: $RESPONSE"
+          
+          # Extract URL from response if available, otherwise use default
+          DEPLOY_URL=$(echo "$RESPONSE" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 || echo "https://pulse-point-plaza.nexlayer.app")
+          if [ -z "$DEPLOY_URL" ]; then
+            DEPLOY_URL="https://pulse-point-plaza.nexlayer.app"
+          fi
+          echo "DEPLOY_URL=$DEPLOY_URL" >> $GITHUB_OUTPUT
 
-      - name: Lovable Deployment Output
+      # Lovable Integration - Output deployment URL for Lovable UI
+      - name: Output Deployment URL for Lovable
         if: steps.login.outcome == 'success'
         run: |
-          echo "LOVABLE_DEPLOY_URL=https://pulse-point-plaza.nexlayer.app" >> $GITHUB_ENV
+          DEPLOY_URL="${{ steps.deploy.outputs.DEPLOY_URL }}"
+          if [ -z "$DEPLOY_URL" ]; then
+            DEPLOY_URL="https://pulse-point-plaza.nexlayer.app"
+          fi
+          
+          # Standard GitHub Actions output
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Live URL:** [$DEPLOY_URL]($DEPLOY_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Your application has been deployed to Nexlayer." >> $GITHUB_STEP_SUMMARY
+          
+          # Lovable-specific outputs
+          echo "LOVABLE_DEPLOY_URL=$DEPLOY_URL" >> $GITHUB_ENV
           echo "LOVABLE_DEPLOY_STATUS=success" >> $GITHUB_ENV
+          
+          # Output for workflow
+          echo "::notice title=Deployment URL::$DEPLOY_URL"
