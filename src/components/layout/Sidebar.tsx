@@ -34,7 +34,7 @@ export function Sidebar() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <Zap className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-foreground">StellarStack Ltd.</span>
+          <span className="text-lg font-semibold text-foreground">Stellar Stack Ltd.</span>
         </div>
 
         {/* Navigation */}
