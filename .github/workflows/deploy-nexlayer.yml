@@ -5,14 +5,14 @@ on:
     branches:
       - main
       - nexlayer-mcp
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual triggering
 
 env:
   REGISTRY: registry.nexlayer.io
   IMAGE_NAME: pulse-point-plaza/frontend
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -54,7 +54,40 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-      - name: Deploy to Nexlayer
+      - name: Create deployment summary
         run: |
-          echo "Build and push completed. Please deploy using Nexlayer MCP tools or CLI."
+          echo "## 🚀 Nexlayer Deployment Ready" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Docker image built and pushed!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To deploy to Nexlayer, use one of these methods:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Use Nexlayer MCP tools in Cursor/Claude:**" >> $GITHUB_STEP_SUMMARY
+          echo "   - Ask your AI assistant to deploy using the \`nexlayer.yaml\` file" >> $GITHUB_STEP_SUMMARY
+          echo "   - The image is ready at: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Deploy via Nexlayer dashboard:**" >> $GITHUB_STEP_SUMMARY
+          echo "   - Visit: https://app.nexlayer.io" >> $GITHUB_STEP_SUMMARY
+          echo "   - Use the \`nexlayer.yaml\` file from this repository" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
 
+      - name: Output deployment info
+        run: |
+          echo "=========================================="
+          echo "🎉 Nexlayer Deployment Ready!"
+          echo "=========================================="
+          echo ""
+          echo "📦 Docker Image:"
+          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo ""
+          echo "📋 Configuration: nexlayer.yaml"
+          echo ""
+          echo "💡 Deploy using Nexlayer MCP tools or dashboard"
+          echo "=========================================="
