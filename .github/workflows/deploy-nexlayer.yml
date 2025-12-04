@@ -61,6 +61,7 @@ jobs:
           labels: ${{ steps.frontendMeta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          no-cache: true
 
       - name: Update nexlayer.yaml
         if: steps.login.outcome == 'success'
@@ -68,8 +69,11 @@ jobs:
           # Extract the short SHA
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           
-          # Update the frontend image in nexlayer.yaml
-          sed -i "s|image:.*|image: registry.nexlayer.io/nexlayer-mcp/amishmaqbool/${{ env.FRONTEND_IMAGE_NAME }}:$SHORT_SHA|" nexlayer.yaml
+          # Update the frontend image tag in nexlayer.yaml
+          sed -i 's|image: <% REGISTRY %>/amishmaqbool/pulse-point-plaza-frontend:.*|image: <% REGISTRY %>/amishmaqbool/pulse-point-plaza-frontend:'"$SHORT_SHA"'|' nexlayer.yaml
+          
+          # Replace the placeholder token with actual token
+          sed -i 's|<NEXLAYER_TOKEN>|${{ secrets.NEXLAYER_TOKEN }}|' nexlayer.yaml
           
           # Display the updated file for verification
           cat nexlayer.yaml
