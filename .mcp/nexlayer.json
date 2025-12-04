@@ -1,0 +1,64 @@
+{
+  "name": "nexlayer",
+  "version": "1.0.0",
+  "description": "NexLayer deployment API integration for Lovable",
+  "api": {
+    "baseUrl": "https://app.nexlayer.io",
+    "deploy": {
+      "method": "POST",
+      "endpoint": "/startUserDeployment/{sessionToken}",
+      "headers": {
+        "Content-Type": "text/x-yaml"
+      },
+      "body": {
+        "type": "file",
+        "file": "nexlayer.yaml"
+      },
+      "parameters": {
+        "sessionToken": {
+          "type": "string",
+          "required": true,
+          "description": "NexLayer session token from GitHub Secrets (NEXLAYER_SESSION_TOKEN)",
+          "source": "secret"
+        }
+      }
+    },
+    "status": {
+      "method": "GET",
+      "endpoint": "/api/deployments/{applicationName}/status",
+      "parameters": {
+        "applicationName": {
+          "type": "string",
+          "required": true,
+          "default": "pulse-point-plaza"
+        }
+      }
+    }
+  },
+  "config": {
+    "applicationName": "pulse-point-plaza",
+    "yamlFile": "nexlayer.yaml",
+    "sessionTokenSecret": "NEXLAYER_SESSION_TOKEN"
+  },
+  "tools": {
+    "deploy": {
+      "name": "nexlayer.deploy",
+      "description": "Deploy application to NexLayer using the deployment API",
+      "action": "deploy",
+      "requires": ["sessionToken", "yamlFile"]
+    },
+    "getStatus": {
+      "name": "nexlayer.getStatus",
+      "description": "Get deployment status from NexLayer",
+      "action": "status",
+      "requires": ["applicationName"]
+    },
+    "getUrl": {
+      "name": "nexlayer.getUrl",
+      "description": "Get the live deployment URL",
+      "action": "url",
+      "script": "node get-deployment-url.js"
+    }
+  }
+}
+
