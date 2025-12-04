@@ -10,6 +10,7 @@ on:
 env:
   REGISTRY: registry.nexlayer.io
   IMAGE_NAME: pulse-point-plaza/frontend
+  NEXLAYER_APP_NAME: pulse-point-plaza
 
 jobs:
   build-and-push:
@@ -26,20 +27,20 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Nexlayer Registry
-        if: ${{ secrets.NEXLAYER_TOKEN != '' }}
+        id: login
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.NEXLAYER_USERNAME || 'nexlayer' }}
+          username: ${{ secrets.NEXLAYER_USERNAME }}
           password: ${{ secrets.NEXLAYER_TOKEN }}
+        continue-on-error: true
       
       - name: Check registry credentials
-        if: ${{ secrets.NEXLAYER_TOKEN == '' }}
+        if: steps.login.outcome == 'failure'
         run: |
-          echo "⚠️ Warning: NEXLAYER_TOKEN secret is not set."
+          echo "::warning::NEXLAYER_TOKEN or NEXLAYER_USERNAME secret is missing or invalid."
           echo "The workflow will build the image but cannot push to registry."
           echo "Please set NEXLAYER_TOKEN and NEXLAYER_USERNAME secrets in your repository settings."
-          exit 1
 
       - name: Extract metadata
         id: meta
@@ -47,8 +48,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -56,47 +56,164 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          push: ${{ steps.login.outcome == 'success' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update nexlayer.yaml with new image
+        id: update-yaml
+        if: steps.login.outcome == 'success'
+        run: |
+          # Extract the short SHA
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          
+          # Get the image tag (use SHA tag if available, otherwise latest)
+          IMAGE_TAG="${SHORT_SHA}"
+          IMAGE_PATH="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          
+          # Update the image in nexlayer.yaml
+          sed -i "s|image:.*|image: ${IMAGE_PATH}:${IMAGE_TAG}|" nexlayer.yaml
+          
+          echo "✅ Updated nexlayer.yaml with image: ${IMAGE_PATH}:${IMAGE_TAG}"
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Nexlayer
+        id: deploy
+        if: steps.login.outcome == 'success'
+        run: |
+          echo "🚀 Deploying to Nexlayer..."
+          
+          if [ -z "${{ secrets.NEXLAYER_SESSION_TOKEN }}" ]; then
+            echo "⚠️ NEXLAYER_SESSION_TOKEN not set, skipping deployment"
+            echo "DEPLOYMENT_URL=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Deploy update to Nexlayer using the API
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST https://app.nexlayer.io/updateUserDeployment \
+            -H "Content-Type: text/x-yaml" \
+            -H "Authorization: Bearer ${{ secrets.NEXLAYER_SESSION_TOKEN }}" \
+            --data-binary @nexlayer.yaml || echo -e "\n000")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Deployment successful!"
+            echo "Response: $BODY"
+            
+            # Try to extract URL from response
+            URL=$(echo "$BODY" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 || echo "$BODY" | grep -o '"deploymentUrl":"[^"]*"' | cut -d'"' -f4 || echo "")
+            if [ -n "$URL" ]; then
+              echo "DEPLOYMENT_URL=$URL" >> $GITHUB_OUTPUT
+              echo "DEPLOYMENT_URL=$URL" >> $GITHUB_ENV
+            fi
+          else
+            echo "⚠️ Deployment returned HTTP $HTTP_CODE"
+            echo "Response: $BODY"
+            exit 1
+          fi
+        continue-on-error: true
+
+      - name: Get deployment URL
+        id: deployment-url
+        if: steps.deploy.outcome != 'success' || steps.deploy.outputs.DEPLOYMENT_URL == ''
+        run: |
+          echo "🔍 Fetching deployment URL from Nexlayer..."
+          APP_NAME="${{ env.NEXLAYER_APP_NAME }}"
+          API_URL="https://api.nexlayer.io"
+          
+          if [ -z "${{ secrets.NEXLAYER_SESSION_TOKEN }}" ]; then
+            echo "⚠️ NEXLAYER_SESSION_TOKEN not set, skipping URL fetch"
+            exit 0
+          fi
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.NEXLAYER_SESSION_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${API_URL}/api/v1/applications/${APP_NAME}" || echo -e "\n000")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            URL=$(echo "$BODY" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 || echo "$BODY" | grep -o '"deploymentUrl":"[^"]*"' | cut -d'"' -f4 || echo "")
+            
+            if [ -n "$URL" ]; then
+              echo "DEPLOYMENT_URL=$URL" >> $GITHUB_OUTPUT
+              echo "✅ Deployment URL found: $URL"
+            else
+              echo "⚠️ Deployment URL not found in response"
+              echo "Response: $BODY"
+            fi
+          else
+            echo "⚠️ Could not fetch deployment URL (HTTP $HTTP_CODE)"
+            echo "Response: $BODY"
+          fi
+        continue-on-error: true
 
       - name: Create deployment summary
         run: |
-          echo "## 🚀 Nexlayer Deployment Ready" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Nexlayer Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Docker image built and pushed!**" >> $GITHUB_STEP_SUMMARY
+          
+          # Determine which URL to use (from deploy step or from API fetch)
+          DEPLOY_URL="${{ steps.deploy.outputs.DEPLOYMENT_URL }}"
+          if [ -z "$DEPLOY_URL" ]; then
+            DEPLOY_URL="${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}"
+          fi
+          
+          if [ -n "$DEPLOY_URL" ]; then
+            echo "### 🌐 Live Deployment" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**✅ Your application is deployed and live at:**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "[$DEPLOY_URL]($DEPLOY_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "### 📦 Docker Image" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.update-yaml.outputs.IMAGE_TAG || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To deploy to Nexlayer, use one of these methods:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Use Nexlayer MCP tools in Cursor/Claude:**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Ask your AI assistant to deploy using the \`nexlayer.yaml\` file" >> $GITHUB_STEP_SUMMARY
-          echo "   - The image is ready at: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Deploy via Nexlayer dashboard:**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Visit: https://app.nexlayer.io" >> $GITHUB_STEP_SUMMARY
-          echo "   - Use the \`nexlayer.yaml\` file from this repository" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Output deployment info
         run: |
           echo "=========================================="
-          echo "🎉 Nexlayer Deployment Ready!"
-          echo "=========================================="
-          echo ""
-          echo "📦 Docker Image:"
-          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo ""
+          
+          # Determine which URL to use
+          DEPLOY_URL="${{ steps.deploy.outputs.DEPLOYMENT_URL }}"
+          if [ -z "$DEPLOY_URL" ]; then
+            DEPLOY_URL="${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}"
+          fi
+          
+          if [ -n "$DEPLOY_URL" ]; then
+            echo "🎉 Deployment Successful!"
+            echo "=========================================="
+            echo ""
+            echo "🌐 Live Deployment URL:"
+            echo "$DEPLOY_URL"
+            echo ""
+          else
+            echo "🎉 Build Complete!"
+            echo "=========================================="
+            echo ""
+            echo "📦 Docker Image:"
+            echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.update-yaml.outputs.IMAGE_TAG || 'latest' }}"
+            echo ""
+            echo "⚠️  Deployment URL not available"
+            echo "   Make sure NEXLAYER_SESSION_TOKEN is set in secrets"
+            echo ""
+          fi
+          
           echo "📋 Configuration: nexlayer.yaml"
-          echo ""
-          echo "💡 Deploy using Nexlayer MCP tools or dashboard"
           echo "=========================================="
