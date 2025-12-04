@@ -76,6 +76,6 @@ jobs:
       - name: Deploy to Nexlayer
         run: |
           # Deploy to Nexlayer using the API
-          curl -X POST https://app.nexlayer.io/startUserDeployment \ <sessionToken>
+          curl -X POST https://app.nexlayer.io/startUserDeployment/<sessionToken> \
             -H "Content-Type: text/x-yaml" \
             --data-binary @nexlayer.yaml
