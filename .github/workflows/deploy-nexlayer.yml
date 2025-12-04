@@ -74,8 +74,11 @@ jobs:
           cat nexlayer.yaml
 
       - name: Deploy to Nexlayer
+        if: steps.login.outcome == 'success'
+        env:
+          NEXLAYER_SESSION_TOKEN: ${{ secrets.NEXLAYER_SESSION_TOKEN }}
         run: |
           # Deploy to Nexlayer using the API
-          curl -X POST https://app.nexlayer.io/startUserDeployment/<%NEXLAYER_SESSION_TOKEN%> \
+          curl -X POST https://app.nexlayer.io/startUserDeployment/$NEXLAYER_SESSION_TOKEN \
             -H "Content-Type: text/x-yaml" \
             --data-binary @nexlayer.yaml
