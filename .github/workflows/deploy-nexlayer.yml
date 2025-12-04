@@ -82,13 +82,19 @@ jobs:
 
       - name: Deploy to Nexlayer
         id: deploy
-        if: steps.login.outcome == 'success'
         run: |
           echo "🚀 Deploying to Nexlayer..."
           
           if [ -z "${{ secrets.NEXLAYER_SESSION_TOKEN }}" ]; then
             echo "⚠️ NEXLAYER_SESSION_TOKEN not set, skipping deployment"
+            echo "Please set NEXLAYER_SESSION_TOKEN secret in your repository settings."
             echo "DEPLOYMENT_URL=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check if nexlayer.yaml was updated (if login failed, use existing image)
+          if [ ! -f nexlayer.yaml ]; then
+            echo "⚠️ nexlayer.yaml not found, skipping deployment"
             exit 0
           fi
           
