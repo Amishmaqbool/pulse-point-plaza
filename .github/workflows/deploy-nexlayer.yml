@@ -82,3 +82,9 @@ jobs:
           curl -X POST https://app.nexlayer.io/startUserDeployment/$NEXLAYER_SESSION_TOKEN \
             -H "Content-Type: text/x-yaml" \
             --data-binary @nexlayer.yaml
+
+      - name: Lovable Deployment Output
+        if: steps.login.outcome == 'success'
+        run: |
+          echo "LOVABLE_DEPLOY_URL=https://pulse-point-plaza.nexlayer.app" >> $GITHUB_ENV
+          echo "LOVABLE_DEPLOY_STATUS=success" >> $GITHUB_ENV

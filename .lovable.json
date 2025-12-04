@@ -1,0 +1,8 @@
+{
+  "deployment": {
+    "platform": "NexLayer",
+    "dashboard_url": "https://app.nexlayer.io/dashboard?tab=overview",
+    "service_url": "https://pulse-point-plaza.nexlayer.app"
+  }
+}
+
