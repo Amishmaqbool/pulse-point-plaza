@@ -63,26 +63,72 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
+      - name: Get deployment URL
+        id: deployment-url
+        run: |
+          echo "🔍 Fetching deployment URL from Nexlayer..."
+          APP_NAME="pulse-point-plaza"
+          API_URL="https://api.nexlayer.io"
+          
+          if [ -z "${{ secrets.NEXLAYER_SESSION_TOKEN }}" ]; then
+            echo "⚠️ NEXLAYER_SESSION_TOKEN not set, skipping URL fetch"
+            exit 0
+          fi
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.NEXLAYER_SESSION_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${API_URL}/api/v1/applications/${APP_NAME}" || echo -e "\n000")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            URL=$(echo "$BODY" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 || echo "$BODY" | grep -o '"deploymentUrl":"[^"]*"' | cut -d'"' -f4 || echo "")
+            
+            if [ -n "$URL" ]; then
+              echo "DEPLOYMENT_URL=$URL" >> $GITHUB_OUTPUT
+              echo "✅ Deployment URL found: $URL"
+            else
+              echo "⚠️ Deployment URL not found in response"
+              echo "Response: $BODY"
+            fi
+          else
+            echo "⚠️ Could not fetch deployment URL (HTTP $HTTP_CODE)"
+            echo "Response: $BODY"
+          fi
+        continue-on-error: true
+
       - name: Create deployment summary
         run: |
           echo "## 🚀 Nexlayer Deployment Ready" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Docker image built and pushed!**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}" ]; then
+            echo "### 🌐 Live Deployment" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Your application is live at:**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "[${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}](${{ steps.deployment-url.outputs.DEPLOYMENT_URL }})" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To deploy to Nexlayer, use one of these methods:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Use Nexlayer MCP tools in Cursor/Claude:**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Ask your AI assistant to deploy using the \`nexlayer.yaml\` file" >> $GITHUB_STEP_SUMMARY
-          echo "   - The image is ready at: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Deploy via Nexlayer dashboard:**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Visit: https://app.nexlayer.io" >> $GITHUB_STEP_SUMMARY
-          echo "   - Use the \`nexlayer.yaml\` file from this repository" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -z "${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}" ]; then
+            echo "To deploy to Nexlayer, use one of these methods:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. **Use Nexlayer MCP tools in Cursor/Claude:**" >> $GITHUB_STEP_SUMMARY
+            echo "   - Ask your AI assistant to deploy using the \`nexlayer.yaml\` file" >> $GITHUB_STEP_SUMMARY
+            echo "   - The image is ready at: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Deploy via Nexlayer dashboard:**" >> $GITHUB_STEP_SUMMARY
+            echo "   - Visit: https://app.nexlayer.io" >> $GITHUB_STEP_SUMMARY
+            echo "   - Use the \`nexlayer.yaml\` file from this repository" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:** ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
@@ -96,6 +142,11 @@ jobs:
           echo "📦 Docker Image:"
           echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
           echo ""
+          if [ -n "${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}" ]; then
+            echo "🌐 Live Deployment URL:"
+            echo "${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}"
+            echo ""
+          fi
           echo "📋 Configuration: nexlayer.yaml"
           echo ""
           echo "💡 Deploy using Nexlayer MCP tools or dashboard"
