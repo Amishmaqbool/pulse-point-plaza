@@ -78,6 +78,18 @@ jobs:
           # Update the image in nexlayer.yaml
           sed -i "s|image:.*|image: ${IMAGE_PATH}:${IMAGE_TAG}|" nexlayer.yaml
           
+          # Ensure environment field exists in nexlayer.yaml (under application:)
+          if ! grep -q "^  environment:" nexlayer.yaml && ! grep -q "^environment:" nexlayer.yaml; then
+            # Add environment after application name line
+            sed -i "/^application:/a\  environment: ${{ env.NEXLAYER_ENVIRONMENT }}" nexlayer.yaml
+          elif grep -q "^  environment:" nexlayer.yaml; then
+            # Update existing indented environment field
+            sed -i "s|^  environment:.*|  environment: ${{ env.NEXLAYER_ENVIRONMENT }}|" nexlayer.yaml
+          elif grep -q "^environment:" nexlayer.yaml; then
+            # Update existing non-indented environment field
+            sed -i "s|^environment:.*|environment: ${{ env.NEXLAYER_ENVIRONMENT }}|" nexlayer.yaml
+          fi
+          
           echo "✅ Updated nexlayer.yaml with image: ${IMAGE_PATH}:${IMAGE_TAG}"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
@@ -99,9 +111,24 @@ jobs:
             exit 0
           fi
           
+          # Ensure environment field exists in nexlayer.yaml (in case yaml update step was skipped)
+          if ! grep -q "^  environment:" nexlayer.yaml && ! grep -q "^environment:" nexlayer.yaml; then
+            echo "Adding environment field to nexlayer.yaml..."
+            sed -i "/^application:/a\  environment: ${{ env.NEXLAYER_ENVIRONMENT }}" nexlayer.yaml
+          elif grep -q "^  environment:" nexlayer.yaml; then
+            sed -i "s|^  environment:.*|  environment: ${{ env.NEXLAYER_ENVIRONMENT }}|" nexlayer.yaml
+          elif grep -q "^environment:" nexlayer.yaml; then
+            sed -i "s|^environment:.*|environment: ${{ env.NEXLAYER_ENVIRONMENT }}|" nexlayer.yaml
+          fi
+          
+          echo "📋 Deploying with nexlayer.yaml:"
+          cat nexlayer.yaml
+          
           # Deploy update to Nexlayer using the API
+          # Try with environment in query parameter first
+          ENV_PARAM=$(echo "${{ env.NEXLAYER_ENVIRONMENT }}" | sed 's/ /%20/g')
           RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST "https://app.nexlayer.io/updateUserDeployment?environment=${{ env.NEXLAYER_ENVIRONMENT }}" \
+            -X POST "https://app.nexlayer.io/updateUserDeployment?environment=${ENV_PARAM}" \
             -H "Content-Type: text/x-yaml" \
             -H "Authorization: Bearer ${{ secrets.NEXLAYER_SESSION_TOKEN }}" \
             --data-binary @nexlayer.yaml || echo -e "\n000")

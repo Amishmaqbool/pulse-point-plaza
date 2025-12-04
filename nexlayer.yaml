@@ -1,5 +1,6 @@
 application:
   name: pulse-point-plaza
+  environment: production
   pods:
     - name: frontend
       image: registry.nexlayer.io/nexlayer-mcp/amishmaqbool/pulse-point-plaza-frontend:b082cc2
