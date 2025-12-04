@@ -1,20 +1,9 @@
-name: pulse-point-plaza
-environment: production
-
-pods:
-  - name: frontend
-    image: registry.nexlayer.io/pulse-point-plaza/frontend:latest
-    ports:
-      - containerPort: 80
-        protocol: TCP
-    env:
-      - name: NODE_ENV
-        value: production
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "100m"
-      limits:
-        memory: "512Mi"
-        cpu: "500m"
-
+application:
+  name: pulse-point-plaza
+  pods:
+    - name: frontend
+      image: registry.nexlayer.io/nexlayer-mcp/amishmaqbool/pulse-point-plaza-frontend:b082cc2
+      path: "/"
+      servicePorts: [80]
+      vars:
+        NODE_ENV: production
