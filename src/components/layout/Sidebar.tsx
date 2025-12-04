@@ -15,10 +15,10 @@ const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Team", url: "/team", icon: Users },
   { title: "Projects", url: "/projects", icon: FolderOpen },
+  { title: "Attendance", url: "/attendance", icon: Clock },
   { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "Documents", url: "/documents", icon: FileText },
   { title: "Messages", url: "/messages", icon: MessageSquare },
-  { title: "Time Off", url: "/time-off", icon: Clock },
 ];
 
 const bottomItems = [
