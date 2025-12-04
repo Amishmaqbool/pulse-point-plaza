@@ -67,8 +67,8 @@ jobs:
           # Extract the short SHA
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           
-          # Update the frontend image in nexlayer.yaml
-          sed -i "s|image:.*|image: registry.nexlayer.io/nexlayer-mcp/amishmaqbool/${{ env.FRONTEND_IMAGE_NAME }}:$SHORT_SHA|" nexlayer.yaml
+          # Update the frontend image in nexlayer.yaml to use ghcr.io (where we pushed)
+          sed -i "s|image:.*|image: ghcr.io/amishmaqbool/${{ env.FRONTEND_IMAGE_NAME }}:$SHORT_SHA|" nexlayer.yaml
           
           # Display the updated file for verification
           cat nexlayer.yaml
