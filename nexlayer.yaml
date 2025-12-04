@@ -2,7 +2,7 @@ application:
   name: pulse-point-plaza
   pods:
     - name: frontend
-      image: ghcr.io/amishmaqbool/pulse-point-plaza-frontend:b707c54
+      image: registry.nexlayer.io/nexlayer-mcp/amishmaqbool/pulse-point-plaza-frontend:latest
       path: "/"
       servicePorts: [80]
       vars:
